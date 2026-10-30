@@ -1,4 +1,4 @@
--- Wholesale Empire Hub v3.3 | Potassium Luau
+-- Wholesale Empire Hub v3.4 | Potassium Luau
 -- Safe automation: stock alerts, worker alerts, optional nearby non-purchase prompts.
 -- Remote purchasing/order fulfilment requires verified argument schemas and is NOT fired.
 local P=game:GetService('Players').LocalPlayer
@@ -16,7 +16,7 @@ local bg=Color3.fromRGB(25,28,37);local panel=Color3.fromRGB(39,45,59);local fg=
 local main=obj('Frame',{Size=UDim2.fromOffset(610,420),Position=lastPos,BackgroundColor3=bg,BorderSizePixel=0,Active=true},g)
 obj('UICorner',{CornerRadius=UDim.new(0,10)},main)
 local bar=obj('Frame',{Size=UDim2.new(1,0,0,45),BackgroundColor3=panel,BorderSizePixel=0,Active=true},main)
-obj('TextLabel',{Size=UDim2.new(1,-100,1,0),Position=UDim2.fromOffset(12,0),BackgroundTransparency=1,Text='WHOLESALE EMPIRE HUB  v3.3',TextColor3=fg,Font=Enum.Font.GothamBold,TextSize=15,TextXAlignment=Enum.TextXAlignment.Left},bar)
+obj('TextLabel',{Size=UDim2.new(1,-100,1,0),Position=UDim2.fromOffset(12,0),BackgroundTransparency=1,Text='WHOLESALE EMPIRE HUB  v3.4',TextColor3=fg,Font=Enum.Font.GothamBold,TextSize=15,TextXAlignment=Enum.TextXAlignment.Left},bar)
 local function btn(parent,text,x,y,w,h)
  local border=obj('Frame',{Position=UDim2.fromOffset(x,y),Size=UDim2.fromOffset(w,h),BackgroundColor3=Color3.new(0,0,0),BorderSizePixel=0},parent)
  obj('UICorner',{CornerRadius=UDim.new(0,7)},border)
@@ -314,7 +314,7 @@ on(setRackBtn.MouseButton1Click,function()
  local root=P.Character and P.Character:FindFirstChild('HumanoidRootPart')
  local myplot=plot()
  if not root or not myplot then notice='Stand at your installed rack before setting position';return end
- calibratedRack={position=root.Position,plotName=myplot.Name}
+ calibratedRack={position=root.Position,lookVector=root.CFrame.LookVector,plotName=myplot.Name}
  _G.WEHubRackCalibration=calibratedRack
  rackCalStatus.Text='Saved rack approach: '..myplot.Name
  notice='Rack approach saved. Start MASTER to test placement.'
@@ -413,6 +413,11 @@ local function storeCarried(box,gen)
   if not alive or not master or gen~=controllerGeneration then return false end
   jobStatus='Carrying '..box.Name..' to rack'
   if moveToPosition(targets[i],3,gen) then
+   local charRoot=rootPart()
+   if charRoot and calibratedRack and calibratedRack.lookVector and i==1 then
+    local dir=Vector3.new(calibratedRack.lookVector.X,0,calibratedRack.lookVector.Z)
+    if dir.Magnitude>.01 then charRoot.CFrame=CFrame.lookAt(charRoot.Position,charRoot.Position+dir.Unit) end
+   end
    local p=cartonPrompt(box,'putdown')
    if p then
     local ok=pcall(fireproximityprompt,p)
@@ -427,8 +432,8 @@ local function storeCarried(box,gen)
   end
  end
  storageBlocked=true
-  notice='Storage paused: rack may be full or placement rejected. Clear rack and restart MASTER.'
-  jobStatus='Storage paused: no confirmed free rack space'
+  notice='RACK FULL / placement rejected: waiting for storage space or shipping transfer.'
+  jobStatus='RACK FULL: no confirmed placement available'
  return false
 end
 local function runBatch(gen)
@@ -475,4 +480,4 @@ local function cleanup()if not alive then return end;alive=false;controllerGener
 _G.WEHubCleanup=cleanup;on(close.MouseButton1Click,cleanup)
 updateMovement();updateAuto();pcall(refresh)
 task.spawn(function()while alive do pcall(refresh);pcall(handleCartons);updateAuto();task.wait(2)end end)
-print('Wholesale Empire Hub v3.3 loaded')
+print('Wholesale Empire Hub v3.4 loaded')
