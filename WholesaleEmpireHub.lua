@@ -1,4 +1,4 @@
--- Wholesale Empire Hub v2.9 | Potassium Luau
+-- Wholesale Empire Hub v3.0 | Potassium Luau
 -- Safe automation: stock alerts, worker alerts, optional nearby non-purchase prompts.
 -- Remote purchasing/order fulfilment requires verified argument schemas and is NOT fired.
 local P=game:GetService('Players').LocalPlayer
@@ -16,7 +16,7 @@ local bg=Color3.fromRGB(25,28,37);local panel=Color3.fromRGB(39,45,59);local fg=
 local main=obj('Frame',{Size=UDim2.fromOffset(610,420),Position=lastPos,BackgroundColor3=bg,BorderSizePixel=0,Active=true},g)
 obj('UICorner',{CornerRadius=UDim.new(0,10)},main)
 local bar=obj('Frame',{Size=UDim2.new(1,0,0,45),BackgroundColor3=panel,BorderSizePixel=0,Active=true},main)
-obj('TextLabel',{Size=UDim2.new(1,-100,1,0),Position=UDim2.fromOffset(12,0),BackgroundTransparency=1,Text='WHOLESALE EMPIRE HUB  v2.9',TextColor3=fg,Font=Enum.Font.GothamBold,TextSize=15,TextXAlignment=Enum.TextXAlignment.Left},bar)
+obj('TextLabel',{Size=UDim2.new(1,-100,1,0),Position=UDim2.fromOffset(12,0),BackgroundTransparency=1,Text='WHOLESALE EMPIRE HUB  v3.0',TextColor3=fg,Font=Enum.Font.GothamBold,TextSize=15,TextXAlignment=Enum.TextXAlignment.Left},bar)
 local function btn(parent,text,x,y,w,h)
  local border=obj('Frame',{Position=UDim2.fromOffset(x,y),Size=UDim2.fromOffset(w,h),BackgroundColor3=Color3.new(0,0,0),BorderSizePixel=0},parent)
  obj('UICorner',{CornerRadius=UDim.new(0,7)},border)
@@ -53,12 +53,13 @@ local pickupBtn=btn(pages.Automation,'Auto pickup: OFF',8,312,200,36)
 local placeBtn=btn(pages.Automation,'Auto place: OFF',215,312,200,36)
 local scanBtn=btn(pages.Automation,'Scan interactions',8,357,200,36)
 local travelBtn=btn(pages.Automation,'Auto travel: OFF',8,405,200,36)
-local buyBtn=btn(pages.Automation,'Auto purchase: OFF',215,405,200,36)
+local buyBtn=btn(pages.Automation,'Auto Buy: OFF',215,405,200,36)
+local ordersBtn=btn(pages.Automation,'Auto Orders: OFF',215,452,200,36)
 local masterBtn=btn(pages.Automation,'MASTER: OFF',8,452,200,36)
 local budgetLess=btn(pages.Automation,'Budget -100',8,497,130,34)
 local budgetMore=btn(pages.Automation,'Budget +100',148,497,130,34)
 local status=label(pages.Automation,'',545,280)
-local pickupOn=false;local placeOn=false;local autoTravel=false;local autoBuy=false;local master=false;local budget=500;local busy=false;local jobStatus='Idle';local purchaseSchemaVerified=false;local interactionReport='Not scanned';local lastAction=0
+local pickupOn=false;local placeOn=false;local autoTravel=false;local autoBuy=false;local autoOrders=false;local storageBlocked=false;local master=false;local budget=500;local busy=false;local jobStatus='Idle';local purchaseSchemaVerified=false;local interactionReport='Not scanned';local lastAction=0
 
 local movement=label(pages.Movement,'',12,85)
 local function hum()local c=P.Character;return c and c:FindFirstChildOfClass('Humanoid')end
@@ -97,7 +98,7 @@ on(track.InputBegan,function(input)if input.UserInputType==Enum.UserInputType.Mo
 on(knob.InputBegan,function(input)if input.UserInputType==Enum.UserInputType.MouseButton1 then sliding=true;setHoverSpeed(input.Position.X) end end)
 on(U.InputChanged,function(input)if sliding and input.UserInputType==Enum.UserInputType.MouseMovement then setHoverSpeed(input.Position.X)end end)
 on(U.InputEnded,function(input)if input.UserInputType==Enum.UserInputType.MouseButton1 then sliding=false end end)
-local function stop()if hoverTween then hoverTween:Cancel();hoverTween=nil end;hoverActive=false;if hum() then hum().PlatformStand=false;hum().AutoRotate=true end;master=false;autoTravel=false;autoBuy=false;pickupOn=false;placeOn=false;speed=false;jump=false;noclip=false;for k in pairs(running)do running[k]=false end;if hum()then hum().WalkSpeed=16 end;for part,old in pairs(saved)do if part.Parent then part.CanCollide=old end end;table.clear(saved);updateMovement()end
+local function stop()if hoverTween then hoverTween:Cancel();hoverTween=nil end;hoverActive=false;if hum() then hum().PlatformStand=false;hum().AutoRotate=true end;master=false;autoTravel=false;autoBuy=false;autoOrders=false;storageBlocked=false;pickupOn=false;placeOn=false;speed=false;jump=false;noclip=false;for k in pairs(running)do running[k]=false end;if hum()then hum().WalkSpeed=16 end;for part,old in pairs(saved)do if part.Parent then part.CanCollide=old end end;table.clear(saved);updateMovement()end
 local stopBtn=btn(pages.Settings,'STOP ALL',8,15,220,42)
 on(stopBtn.MouseButton1Click,function()stop();notice='All local features stopped' end)
 label(pages.Settings,'Right Shift: toggle window\nDrag: top bar\nClose: unload\n\nNo unverified remote purchases or orders.\nNearby prompts are opt-in and limited to non-purchase actions.',75,250)
@@ -129,7 +130,7 @@ local function updateAuto()
  placeBtn.Text='Auto place: '..(placeOn and 'ON' or 'OFF')
  alertBtn.Text='Stock alerts: '..(running.alerts and 'ON' or 'OFF');workerBtn.Text='Worker alerts: '..(running.workerAlerts and 'ON' or 'OFF');nearbyBtn.Text='Nearby prompts: '..(running.nearby and 'ON' or 'OFF')
  autoTitle.Text='WAREHOUSE AUTOMATION\n\nStock threshold: '..threshold..' stored units\nInteraction range: '..maxDistance..' studs\nPurchase cap: '..budget..' currency / transaction\nPurchase protocol: '..(purchaseSchemaVerified and 'VERIFIED' or 'UNVERIFIED - BLOCKED')
- travelBtn.Text='Auto travel: '..(autoTravel and 'ON' or 'OFF');buyBtn.Text='Auto purchase: '..(autoBuy and 'ON' or 'OFF');masterBtn.Text='MASTER: '..(master and 'ON' or 'OFF');status.Text='STATUS: '..notice..'\nTASK: '..jobStatus..'\n\nSCAN: '..interactionReport..'\n\nSequential delivery batches: clear all cartons before new purchase. Purchase stays blocked until BuyStock parameters are verified.'
+ travelBtn.Text='Auto travel: '..(autoTravel and 'ON' or 'OFF');buyBtn.Text='Auto Buy: '..(autoBuy and 'ON' or 'OFF');ordersBtn.Text='Auto Orders: '..(autoOrders and 'ON' or 'OFF');masterBtn.Text='MASTER: '..(master and 'ON' or 'OFF');status.Text='STATUS: '..notice..'\nTASK: '..jobStatus..'\n\nSCAN: '..interactionReport..'\n\nAuto Orders: accept customer orders (awaiting verified interaction). Auto Buy: purchase only missing products for accepted orders (awaiting verified product IDs and purchase arguments).'
 end
 on(alertBtn.MouseButton1Click,function()running.alerts=not running.alerts;notice='Stock alerts toggled';updateAuto()end)
 on(workerBtn.MouseButton1Click,function()running.workerAlerts=not running.workerAlerts;notice='Worker alerts toggled';updateAuto()end)
@@ -190,14 +191,14 @@ local function scanActions()
 end
 on(scanBtn.MouseButton1Click,function()scanActions();notice='Interaction scan completed';updateAuto()end)
 on(travelBtn.MouseButton1Click,function()autoTravel=not autoTravel;notice='Auto travel '..tostring(autoTravel);updateAuto()end)
-on(buyBtn.MouseButton1Click,function()autoBuy=not autoBuy;notice=autoBuy and 'Purchase requested, blocked: BuyStock schema unverified' or 'Auto purchase disabled';updateAuto()end)
+on(buyBtn.MouseButton1Click,function()autoBuy=not autoBuy;notice=autoBuy and 'Auto Buy enabled; purchases blocked until order/product mapping is verified' or 'Auto Buy disabled';updateAuto()end)
+on(ordersBtn.MouseButton1Click,function()autoOrders=not autoOrders;notice=autoOrders and 'Auto Orders enabled; accepting orders blocked until order interaction is verified' or 'Auto Orders disabled';updateAuto()end)
 on(masterBtn.MouseButton1Click,function()master=not master;if master then storageBlocked=false end;notice='Master automation '..tostring(master);updateAuto()end)
 on(budgetLess.MouseButton1Click,function()budget=math.max(0,budget-100);updateAuto()end)
 on(budgetMore.MouseButton1Click,function()budget=math.min(100000,budget+100);updateAuto()end)
 -- Single sequential batch controller. No parallel pickup/place loops.
 -- No BuyStock remote is called: purchase schema and prices remain unknown.
-local storageBlocked=false
- local controllerGeneration=0
+local controllerGeneration=0
 local batchActive=false
 local batchIDs={}
 local function isDelivered(box)
@@ -427,4 +428,4 @@ local function cleanup()if not alive then return end;alive=false;controllerGener
 _G.WEHubCleanup=cleanup;on(close.MouseButton1Click,cleanup)
 updateMovement();updateAuto();pcall(refresh)
 task.spawn(function()while alive do pcall(refresh);pcall(handleCartons);updateAuto();task.wait(2)end end)
-print('Wholesale Empire Hub v2.9 loaded')
+print('Wholesale Empire Hub v3.0 loaded')
