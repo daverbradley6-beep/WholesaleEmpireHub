@@ -1,12 +1,14 @@
--- Wholesale Empire Hub v2.1 | Potassium Luau
+-- Wholesale Empire Hub v2.2 | Potassium Luau
 -- Safe automation: stock alerts, worker alerts, optional nearby non-purchase prompts.
 -- Remote purchasing/order fulfilment requires verified argument schemas and is NOT fired.
 local P=game:GetService('Players').LocalPlayer
 local U=game:GetService('UserInputService')
 local R=game:GetService('RunService')
 local Pathfinding=game:GetService('PathfindingService')
+local TweenService=game:GetService('TweenService')
 if _G.WEHubCleanup then pcall(_G.WEHubCleanup) end
 local g=Instance.new('ScreenGui');g.Name='WholesaleEmpireHub';g.ResetOnSpawn=false;g.Parent=P:WaitForChild('PlayerGui')
+local hoverSpeed=32;local hoverTween=nil;local hoverActive=false
 local con={};local alive=true;local speed=false;local jump=false;local noclip=false;local target=24;local saved={};local running={alerts=false,workerAlerts=false,nearby=false};local threshold=10;local maxDistance=9;local lastPrompt={};local notice='Ready';local lastPos=(_G.WEHubPosition or UDim2.new(.5,-305,.5,-210))
 local function on(s,f)local c=s:Connect(f);table.insert(con,c);return c end
 local function obj(t,p,at)local x=Instance.new(t);for k,v in pairs(p)do x[k]=v end;x.Parent=at;return x end
@@ -14,8 +16,8 @@ local bg=Color3.fromRGB(25,28,37);local panel=Color3.fromRGB(39,45,59);local fg=
 local main=obj('Frame',{Size=UDim2.fromOffset(610,420),Position=lastPos,BackgroundColor3=bg,BorderSizePixel=0,Active=true},g)
 obj('UICorner',{CornerRadius=UDim.new(0,10)},main)
 local bar=obj('Frame',{Size=UDim2.new(1,0,0,45),BackgroundColor3=panel,BorderSizePixel=0,Active=true},main)
-obj('TextLabel',{Size=UDim2.new(1,-100,1,0),Position=UDim2.fromOffset(12,0),BackgroundTransparency=1,Text='WHOLESALE EMPIRE HUB  v2.1',TextColor3=fg,Font=Enum.Font.GothamBold,TextSize=15,TextXAlignment=Enum.TextXAlignment.Left},bar)
-local function btn(parent,text,x,y,w,h)local b=obj('TextButton',{Position=UDim2.fromOffset(x,y),Size=UDim2.fromOffset(w,h),BackgroundColor3=panel,TextColor3=fg,Text=text,TextSize=13,Font=Enum.Font.GothamBold,BorderSizePixel=0},parent);obj('UICorner',{CornerRadius=UDim.new(0,6)},b);return b end
+obj('TextLabel',{Size=UDim2.new(1,-100,1,0),Position=UDim2.fromOffset(12,0),BackgroundTransparency=1,Text='WHOLESALE EMPIRE HUB  v2.2',TextColor3=fg,Font=Enum.Font.GothamBold,TextSize=15,TextXAlignment=Enum.TextXAlignment.Left},bar)
+local function btn(parent,text,x,y,w,h)local b=obj('TextButton',{Position=UDim2.fromOffset(x,y),Size=UDim2.fromOffset(w,h),BackgroundColor3=panel,TextColor3=fg,Text=text,TextSize=13,Font=Enum.Font.GothamBold,BorderSizePixel=0},parent);obj('UICorner',{CornerRadius=UDim.new(0,6)},b);obj('UIStroke',{Color=Color3.new(0,0,0),Thickness=2,Transparency=0,ApplyStrokeMode=Enum.ApplyStrokeMode.Border},b);return b end
 local close=btn(bar,'X',565,7,35,30);local mini=btn(bar,'-',524,7,35,30);local bubble=btn(g,'WE',15,170,46,46);bubble.Visible=false
 local function show(v)main.Visible=v;bubble.Visible=not v end
 on(mini.MouseButton1Click,function()show(false)end);on(bubble.MouseButton1Click,function()show(true)end)
@@ -52,25 +54,45 @@ local budgetMore=btn(pages.Automation,'Budget +100',148,497,130,34)
 local status=label(pages.Automation,'',545,280)
 local pickupOn=false;local placeOn=false;local autoTravel=false;local autoBuy=false;local master=false;local budget=500;local busy=false;local jobStatus='Idle';local purchaseSchemaVerified=false;local interactionReport='Not scanned';local lastAction=0
 
-local movement=label(pages.Movement,'',12,60)
+local movement=label(pages.Movement,'',12,85)
 local function hum()local c=P.Character;return c and c:FindFirstChildOfClass('Humanoid')end
-local function updateMovement()movement.Text='Speed '..target..' ('..(speed and 'ON' or 'OFF')..')\nInfinite jump '..tostring(jump)..' | Noclip '..tostring(noclip)end
-local bSpeed=btn(pages.Movement,'Toggle speed',8,80,150,36)
-local bDown=btn(pages.Movement,'Speed -4',8,125,100,36)
-local bUp=btn(pages.Movement,'Speed +4',116,125,100,36)
-local bJump=btn(pages.Movement,'Toggle infinite jump',8,170,210,36)
-local bNoclip=btn(pages.Movement,'Toggle noclip',8,215,210,36)
+local function updateMovement()movement.Text='Walk speed '..target..' ('..(speed and 'ON' or 'OFF')..')\nHover travel speed '..math.floor(hoverSpeed)..' studs/sec\nInfinite jump '..tostring(jump)..' | Noclip '..tostring(noclip) end
+local bSpeed=btn(pages.Movement,'Toggle speed',8,110,150,36)
+local bDown=btn(pages.Movement,'Speed -4',8,155,100,36)
+local bUp=btn(pages.Movement,'Speed +4',116,155,100,36)
+local bJump=btn(pages.Movement,'Toggle infinite jump',8,200,210,36)
+local bNoclip=btn(pages.Movement,'Toggle noclip',8,245,210,36)
 on(bSpeed.MouseButton1Click,function()speed=not speed;if not speed and hum()then hum().WalkSpeed=16 end;updateMovement()end)
 on(bDown.MouseButton1Click,function()target=math.max(16,target-4);updateMovement()end)
 on(bUp.MouseButton1Click,function()target=math.min(100,target+4);updateMovement()end)
 on(bJump.MouseButton1Click,function()jump=not jump;updateMovement()end)
 on(bNoclip.MouseButton1Click,function()noclip=not noclip;updateMovement()end)
-local function stop()master=false;autoTravel=false;autoBuy=false;pickupOn=false;placeOn=false;speed=false;jump=false;noclip=false;for k in pairs(running)do running[k]=false end;if hum()then hum().WalkSpeed=16 end;for part,old in pairs(saved)do if part.Parent then part.CanCollide=old end end;table.clear(saved);updateMovement()end
+
+local hoverTitle=label(pages.Movement,'Hover speed (8–120 studs/sec)',300,24)
+local track=obj('Frame',{Position=UDim2.fromOffset(15,338),Size=UDim2.fromOffset(385,10),BackgroundColor3=Color3.fromRGB(10,12,16),BorderSizePixel=0},pages.Movement)
+obj('UICorner',{CornerRadius=UDim.new(1,0)},track)
+local fill=obj('Frame',{Size=UDim2.fromScale((hoverSpeed-8)/112,1),BackgroundColor3=accent,BorderSizePixel=0},track)
+obj('UICorner',{CornerRadius=UDim.new(1,0)},fill)
+local knob=obj('Frame',{Size=UDim2.fromOffset(18,18),AnchorPoint=Vector2.new(.5,.5),Position=UDim2.fromScale((hoverSpeed-8)/112,.5),BackgroundColor3=fg,BorderSizePixel=0},track)
+obj('UICorner',{CornerRadius=UDim.new(1,0)},knob)
+obj('UIStroke',{Color=Color3.new(0,0,0),Thickness=2},knob)
+local sliding=false
+local function setHoverSpeed(x)
+ hoverSpeed=math.floor(8+112*math.clamp((x-track.AbsolutePosition.X)/math.max(track.AbsoluteSize.X,1),0,1)+.5)
+ local ratio=(hoverSpeed-8)/112
+ fill.Size=UDim2.fromScale(ratio,1);knob.Position=UDim2.fromScale(ratio,.5)
+ updateMovement()
+end
+on(track.InputBegan,function(input)if input.UserInputType==Enum.UserInputType.MouseButton1 then sliding=true;setHoverSpeed(input.Position.X) end end)
+on(knob.InputBegan,function(input)if input.UserInputType==Enum.UserInputType.MouseButton1 then sliding=true;setHoverSpeed(input.Position.X) end end)
+on(U.InputChanged,function(input)if sliding and input.UserInputType==Enum.UserInputType.MouseMovement then setHoverSpeed(input.Position.X)end end)
+on(U.InputEnded,function(input)if input.UserInputType==Enum.UserInputType.MouseButton1 then sliding=false end end)
+local function stop()if hoverTween then hoverTween:Cancel();hoverTween=nil end;hoverActive=false;master=false;autoTravel=false;autoBuy=false;pickupOn=false;placeOn=false;speed=false;jump=false;noclip=false;for k in pairs(running)do running[k]=false end;if hum()then hum().WalkSpeed=16 end;for part,old in pairs(saved)do if part.Parent then part.CanCollide=old end end;table.clear(saved);updateMovement()end
 local stopBtn=btn(pages.Settings,'STOP ALL',8,15,220,42)
 on(stopBtn.MouseButton1Click,function()stop();notice='All local features stopped' end)
 label(pages.Settings,'Right Shift: toggle window\nDrag: top bar\nClose: unload\n\nNo unverified remote purchases or orders.\nNearby prompts are opt-in and limited to non-purchase actions.',75,250)
 on(U.JumpRequest,function()if jump and hum()then hum():ChangeState(Enum.HumanoidStateType.Jumping)end end)
-on(R.Stepped,function()if speed and hum()then hum().WalkSpeed=target end;if noclip and P.Character then for _,part in ipairs(P.Character:GetDescendants())do if part:IsA('BasePart')then if saved[part]==nil then saved[part]=part.CanCollide end;part.CanCollide=false end end end end)
+on(R.Stepped,function()if speed and hum()then hum().WalkSpeed=target end;if (noclip or hoverActive) and P.Character then for _,part in ipairs(P.Character:GetDescendants())do if part:IsA('BasePart')then if saved[part]==nil then saved[part]=part.CanCollide end;part.CanCollide=false end end end end)
 local function plot()local world=workspace:FindFirstChild('World');local plots=world and world:FindFirstChild('Plots');if not plots then return nil end;for _,p in ipairs(plots:GetChildren())do if tonumber(p:GetAttribute('OwnerUserId'))==P.UserId then return p end end end
 local function refresh()
  local runtime=workspace:FindFirstChild('Runtime');local stock=runtime and runtime:FindFirstChild('Stock');local work=runtime and runtime:FindFirstChild('Workers')
@@ -192,23 +214,34 @@ local function moveToPosition(position,range,gen)
  if not h or not root then return false end
  if (root.Position-position).Magnitude<=range then return true end
  if not autoTravel then notice='Auto Travel must be ON';return false end
- local path=Pathfinding:CreatePath({AgentRadius=2,AgentHeight=5,AgentCanJump=true})
- local ok=pcall(function()path:ComputeAsync(root.Position,position)end)
- local points={}
- if ok and path.Status==Enum.PathStatus.Success then
-  for _,waypoint in ipairs(path:GetWaypoints())do table.insert(points,waypoint) end
- else
-  table.insert(points,{Position=position})
+ hoverActive=true
+ local function finish(ok)
+  if hoverTween then hoverTween:Cancel();hoverTween=nil end
+  hoverActive=false
+  if root and root.Parent then root.AssemblyLinearVelocity=Vector3.zero;root.AssemblyAngularVelocity=Vector3.zero end
+  return ok
  end
- for _,waypoint in ipairs(points)do
-  if not alive or not master or gen~=controllerGeneration then h:MoveTo(root.Position);return false end
-  if (root.Position-position).Magnitude<=range then return true end
-  if waypoint.Action==Enum.PathWaypointAction.Jump then h.Jump=true end
-  h:MoveTo(waypoint.Position)
-  local reached=h.MoveToFinished:Wait()
-  if not reached then return false end
+ local direction=position-root.Position
+ local distance=direction.Magnitude
+ local destination=position
+ if distance>range and distance>0 then destination=position-direction.Unit*math.max(1,range-1) end
+ local travelDistance=(destination-root.Position).Magnitude
+ if travelDistance<.1 then return finish(true) end
+ local duration=travelDistance/math.max(8,hoverSpeed)
+ jobStatus='Hovering ('..math.floor(travelDistance)..' studs, '..math.floor(hoverSpeed)..'/s)'
+ h:Move(Vector3.zero)
+ root.AssemblyLinearVelocity=Vector3.zero
+ local tween=TweenService:Create(root,TweenInfo.new(duration,Enum.EasingStyle.Linear),{CFrame=CFrame.new(destination)*root.CFrame.Rotation})
+ hoverTween=tween
+ tween:Play()
+ local started=os.clock()
+ while alive and master and autoTravel and gen==controllerGeneration and tween.PlaybackState==Enum.PlaybackState.Playing do
+  if not root.Parent or os.clock()-started>duration+3 then break end
+  task.wait(.05)
  end
- return (root.Position-position).Magnitude<=range
+ local valid=alive and master and autoTravel and gen==controllerGeneration and root.Parent~=nil
+ local reached=valid and (root.Position-position).Magnitude<=range+1
+ return finish(reached)
 end
 local function triggerAndConfirm(box,verb,expected,gen)
  local prompt=cartonPrompt(box,verb)
@@ -315,4 +348,4 @@ local function cleanup()if not alive then return end;alive=false;controllerGener
 _G.WEHubCleanup=cleanup;on(close.MouseButton1Click,cleanup)
 updateMovement();updateAuto();pcall(refresh)
 task.spawn(function()while alive do pcall(refresh);pcall(handleCartons);updateAuto();task.wait(2)end end)
-print('Wholesale Empire Hub v2.1 loaded')
+print('Wholesale Empire Hub v2.2 loaded')
