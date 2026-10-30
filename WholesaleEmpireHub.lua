@@ -1,4 +1,4 @@
--- Wholesale Empire Hub v3.0 | Potassium Luau
+-- Wholesale Empire Hub v3.1 | Potassium Luau
 -- Safe automation: stock alerts, worker alerts, optional nearby non-purchase prompts.
 -- Remote purchasing/order fulfilment requires verified argument schemas and is NOT fired.
 local P=game:GetService('Players').LocalPlayer
@@ -16,7 +16,7 @@ local bg=Color3.fromRGB(25,28,37);local panel=Color3.fromRGB(39,45,59);local fg=
 local main=obj('Frame',{Size=UDim2.fromOffset(610,420),Position=lastPos,BackgroundColor3=bg,BorderSizePixel=0,Active=true},g)
 obj('UICorner',{CornerRadius=UDim.new(0,10)},main)
 local bar=obj('Frame',{Size=UDim2.new(1,0,0,45),BackgroundColor3=panel,BorderSizePixel=0,Active=true},main)
-obj('TextLabel',{Size=UDim2.new(1,-100,1,0),Position=UDim2.fromOffset(12,0),BackgroundTransparency=1,Text='WHOLESALE EMPIRE HUB  v3.0',TextColor3=fg,Font=Enum.Font.GothamBold,TextSize=15,TextXAlignment=Enum.TextXAlignment.Left},bar)
+obj('TextLabel',{Size=UDim2.new(1,-100,1,0),Position=UDim2.fromOffset(12,0),BackgroundTransparency=1,Text='WHOLESALE EMPIRE HUB  v3.1',TextColor3=fg,Font=Enum.Font.GothamBold,TextSize=15,TextXAlignment=Enum.TextXAlignment.Left},bar)
 local function btn(parent,text,x,y,w,h)
  local border=obj('Frame',{Position=UDim2.fromOffset(x,y),Size=UDim2.fromOffset(w,h),BackgroundColor3=Color3.new(0,0,0),BorderSizePixel=0},parent)
  obj('UICorner',{CornerRadius=UDim.new(0,7)},border)
@@ -319,6 +319,18 @@ on(setRackBtn.MouseButton1Click,function()
  rackCalStatus.Text='Saved rack approach: '..myplot.Name
  notice='Rack approach saved. Start MASTER to test placement.'
 end)
+local calibratedShipping=_G.WEHubShippingCalibration
+local shipCalStatus=label(pages.Settings,calibratedShipping and 'Shipping position saved for this session' or 'Shipping position not set',375,82)
+local setShipBtn=btn(pages.Settings,'SET SHIPPING POSITION',8,380,220,36)
+on(setShipBtn.MouseButton1Click,function()
+ local root=P.Character and P.Character:FindFirstChild('HumanoidRootPart')
+ local myplot=plot()
+ if not root or not myplot then notice='Stand inside your Shipping Collection area before saving';return end
+ calibratedShipping={position=root.Position,plotName=myplot.Name}
+ _G.WEHubShippingCalibration=calibratedShipping
+ shipCalStatus.Text='Saved shipping approach: '..myplot.Name
+ notice='Shipping position saved. Shipping transfer is not enabled until product and order matching are verified.'
+end)
 local function scanRackDetails()
  local myplot=plot()
  if not myplot then rackReport.Text='No owned plot found';notice='Rack scan: plot not found';return end
@@ -428,4 +440,4 @@ local function cleanup()if not alive then return end;alive=false;controllerGener
 _G.WEHubCleanup=cleanup;on(close.MouseButton1Click,cleanup)
 updateMovement();updateAuto();pcall(refresh)
 task.spawn(function()while alive do pcall(refresh);pcall(handleCartons);updateAuto();task.wait(2)end end)
-print('Wholesale Empire Hub v3.0 loaded')
+print('Wholesale Empire Hub v3.1 loaded')
