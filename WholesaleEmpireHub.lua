@@ -1,4 +1,4 @@
--- Wholesale Empire Hub v2.8 | Potassium Luau
+-- Wholesale Empire Hub v2.9 | Potassium Luau
 -- Safe automation: stock alerts, worker alerts, optional nearby non-purchase prompts.
 -- Remote purchasing/order fulfilment requires verified argument schemas and is NOT fired.
 local P=game:GetService('Players').LocalPlayer
@@ -16,7 +16,7 @@ local bg=Color3.fromRGB(25,28,37);local panel=Color3.fromRGB(39,45,59);local fg=
 local main=obj('Frame',{Size=UDim2.fromOffset(610,420),Position=lastPos,BackgroundColor3=bg,BorderSizePixel=0,Active=true},g)
 obj('UICorner',{CornerRadius=UDim.new(0,10)},main)
 local bar=obj('Frame',{Size=UDim2.new(1,0,0,45),BackgroundColor3=panel,BorderSizePixel=0,Active=true},main)
-obj('TextLabel',{Size=UDim2.new(1,-100,1,0),Position=UDim2.fromOffset(12,0),BackgroundTransparency=1,Text='WHOLESALE EMPIRE HUB  v2.8',TextColor3=fg,Font=Enum.Font.GothamBold,TextSize=15,TextXAlignment=Enum.TextXAlignment.Left},bar)
+obj('TextLabel',{Size=UDim2.new(1,-100,1,0),Position=UDim2.fromOffset(12,0),BackgroundTransparency=1,Text='WHOLESALE EMPIRE HUB  v2.9',TextColor3=fg,Font=Enum.Font.GothamBold,TextSize=15,TextXAlignment=Enum.TextXAlignment.Left},bar)
 local function btn(parent,text,x,y,w,h)
  local border=obj('Frame',{Position=UDim2.fromOffset(x,y),Size=UDim2.fromOffset(w,h),BackgroundColor3=Color3.new(0,0,0),BorderSizePixel=0},parent)
  obj('UICorner',{CornerRadius=UDim.new(0,7)},border)
@@ -191,12 +191,13 @@ end
 on(scanBtn.MouseButton1Click,function()scanActions();notice='Interaction scan completed';updateAuto()end)
 on(travelBtn.MouseButton1Click,function()autoTravel=not autoTravel;notice='Auto travel '..tostring(autoTravel);updateAuto()end)
 on(buyBtn.MouseButton1Click,function()autoBuy=not autoBuy;notice=autoBuy and 'Purchase requested, blocked: BuyStock schema unverified' or 'Auto purchase disabled';updateAuto()end)
-on(masterBtn.MouseButton1Click,function()master=not master;notice='Master automation '..tostring(master);updateAuto()end)
+on(masterBtn.MouseButton1Click,function()master=not master;if master then storageBlocked=false end;notice='Master automation '..tostring(master);updateAuto()end)
 on(budgetLess.MouseButton1Click,function()budget=math.max(0,budget-100);updateAuto()end)
 on(budgetMore.MouseButton1Click,function()budget=math.min(100000,budget+100);updateAuto()end)
 -- Single sequential batch controller. No parallel pickup/place loops.
 -- No BuyStock remote is called: purchase schema and prices remain unknown.
-local controllerGeneration=0
+local storageBlocked=false
+ local controllerGeneration=0
 local batchActive=false
 local batchIDs={}
 local function isDelivered(box)
@@ -371,14 +372,16 @@ local function storeCarried(box,gen)
     if ok then
      for j=1,12 do
       if not alive or not master or gen~=controllerGeneration then return false end
-      if tostring(box:GetAttribute('State') or ''):lower()=='stored' then return true end
+      if tostring(box:GetAttribute('State') or ''):lower()=='stored' then storageBlocked=false;return true end
       task.wait(.25)
      end
     end
    end
   end
  end
- notice='Put Down did not confirm Stored. Check rack approach and free space'
+ storageBlocked=true
+  notice='Storage paused: rack may be full or placement rejected. Clear rack and restart MASTER.'
+  jobStatus='Storage paused: no confirmed free rack space'
  return false
 end
 local function runBatch(gen)
@@ -413,7 +416,7 @@ local function runBatch(gen)
 end
 local nextAttempt=0
 local function handleCartons()
- if not master or busy or os.clock()<nextAttempt then return end
+ if not master or busy or os.clock()<nextAttempt or storageBlocked then return end
  nextAttempt=os.clock()+8
  if not pickupOn and not placeOn then return end
  controllerGeneration+=1
@@ -424,4 +427,4 @@ local function cleanup()if not alive then return end;alive=false;controllerGener
 _G.WEHubCleanup=cleanup;on(close.MouseButton1Click,cleanup)
 updateMovement();updateAuto();pcall(refresh)
 task.spawn(function()while alive do pcall(refresh);pcall(handleCartons);updateAuto();task.wait(2)end end)
-print('Wholesale Empire Hub v2.8 loaded')
+print('Wholesale Empire Hub v2.9 loaded')
