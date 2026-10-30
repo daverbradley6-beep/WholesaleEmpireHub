@@ -1,4 +1,4 @@
--- Wholesale Empire Hub v2.6 | Potassium Luau
+-- Wholesale Empire Hub v2.7 | Potassium Luau
 -- Safe automation: stock alerts, worker alerts, optional nearby non-purchase prompts.
 -- Remote purchasing/order fulfilment requires verified argument schemas and is NOT fired.
 local P=game:GetService('Players').LocalPlayer
@@ -8,7 +8,7 @@ local Pathfinding=game:GetService('PathfindingService')
 local TweenService=game:GetService('TweenService')
 if _G.WEHubCleanup then pcall(_G.WEHubCleanup) end
 local g=Instance.new('ScreenGui');g.Name='WholesaleEmpireHub';g.ResetOnSpawn=false;g.Parent=P:WaitForChild('PlayerGui')
-local hoverLevel=5;local hoverSpeed=32;local hoverTween=nil;local hoverActive=false
+local hoverLevel=1;local hoverSpeed=16;local hoverTween=nil;local hoverActive=false
 local con={};local alive=true;local speed=false;local jump=false;local noclip=false;local target=24;local saved={};local running={alerts=false,workerAlerts=false,nearby=false};local threshold=10;local maxDistance=9;local lastPrompt={};local notice='Ready';local lastPos=(_G.WEHubPosition or UDim2.new(.5,-305,.5,-210))
 local function on(s,f)local c=s:Connect(f);table.insert(con,c);return c end
 local function obj(t,p,at)local x=Instance.new(t);for k,v in pairs(p)do x[k]=v end;x.Parent=at;return x end
@@ -16,7 +16,7 @@ local bg=Color3.fromRGB(25,28,37);local panel=Color3.fromRGB(39,45,59);local fg=
 local main=obj('Frame',{Size=UDim2.fromOffset(610,420),Position=lastPos,BackgroundColor3=bg,BorderSizePixel=0,Active=true},g)
 obj('UICorner',{CornerRadius=UDim.new(0,10)},main)
 local bar=obj('Frame',{Size=UDim2.new(1,0,0,45),BackgroundColor3=panel,BorderSizePixel=0,Active=true},main)
-obj('TextLabel',{Size=UDim2.new(1,-100,1,0),Position=UDim2.fromOffset(12,0),BackgroundTransparency=1,Text='WHOLESALE EMPIRE HUB  v2.6',TextColor3=fg,Font=Enum.Font.GothamBold,TextSize=15,TextXAlignment=Enum.TextXAlignment.Left},bar)
+obj('TextLabel',{Size=UDim2.new(1,-100,1,0),Position=UDim2.fromOffset(12,0),BackgroundTransparency=1,Text='WHOLESALE EMPIRE HUB  v2.7',TextColor3=fg,Font=Enum.Font.GothamBold,TextSize=15,TextXAlignment=Enum.TextXAlignment.Left},bar)
 local function btn(parent,text,x,y,w,h)
  local border=obj('Frame',{Position=UDim2.fromOffset(x,y),Size=UDim2.fromOffset(w,h),BackgroundColor3=Color3.new(0,0,0),BorderSizePixel=0},parent)
  obj('UICorner',{CornerRadius=UDim.new(0,7)},border)
@@ -406,4 +406,4 @@ local function cleanup()if not alive then return end;alive=false;controllerGener
 _G.WEHubCleanup=cleanup;on(close.MouseButton1Click,cleanup)
 updateMovement();updateAuto();pcall(refresh)
 task.spawn(function()while alive do pcall(refresh);pcall(handleCartons);updateAuto();task.wait(2)end end)
-print('Wholesale Empire Hub v2.6 loaded')
+print('Wholesale Empire Hub v2.7 loaded')
