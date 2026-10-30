@@ -1,4 +1,4 @@
--- Wholesale Empire Hub v2.7 | Potassium Luau
+-- Wholesale Empire Hub v2.8 | Potassium Luau
 -- Safe automation: stock alerts, worker alerts, optional nearby non-purchase prompts.
 -- Remote purchasing/order fulfilment requires verified argument schemas and is NOT fired.
 local P=game:GetService('Players').LocalPlayer
@@ -16,7 +16,7 @@ local bg=Color3.fromRGB(25,28,37);local panel=Color3.fromRGB(39,45,59);local fg=
 local main=obj('Frame',{Size=UDim2.fromOffset(610,420),Position=lastPos,BackgroundColor3=bg,BorderSizePixel=0,Active=true},g)
 obj('UICorner',{CornerRadius=UDim.new(0,10)},main)
 local bar=obj('Frame',{Size=UDim2.new(1,0,0,45),BackgroundColor3=panel,BorderSizePixel=0,Active=true},main)
-obj('TextLabel',{Size=UDim2.new(1,-100,1,0),Position=UDim2.fromOffset(12,0),BackgroundTransparency=1,Text='WHOLESALE EMPIRE HUB  v2.7',TextColor3=fg,Font=Enum.Font.GothamBold,TextSize=15,TextXAlignment=Enum.TextXAlignment.Left},bar)
+obj('TextLabel',{Size=UDim2.new(1,-100,1,0),Position=UDim2.fromOffset(12,0),BackgroundTransparency=1,Text='WHOLESALE EMPIRE HUB  v2.8',TextColor3=fg,Font=Enum.Font.GothamBold,TextSize=15,TextXAlignment=Enum.TextXAlignment.Left},bar)
 local function btn(parent,text,x,y,w,h)
  local border=obj('Frame',{Position=UDim2.fromOffset(x,y),Size=UDim2.fromOffset(w,h),BackgroundColor3=Color3.new(0,0,0),BorderSizePixel=0},parent)
  obj('UICorner',{CornerRadius=UDim.new(0,7)},border)
@@ -79,7 +79,7 @@ local track=obj('Frame',{Position=UDim2.fromOffset(15,338),Size=UDim2.fromOffset
 obj('UICorner',{CornerRadius=UDim.new(1,0)},track)
 local fill=obj('Frame',{Size=UDim2.fromScale((hoverLevel-1)/9,1),BackgroundColor3=accent,BorderSizePixel=0},track)
 obj('UICorner',{CornerRadius=UDim.new(1,0)},fill)
-local knob=obj('Frame',{Size=UDim2.fromOffset(18,18),AnchorPoint=Vector2.new(.5,.5),Position=UDim2.fromScale((hoverSpeed-8)/112,.5),BackgroundColor3=fg,BorderSizePixel=0},track)
+local knob=obj('Frame',{Size=UDim2.fromOffset(18,18),AnchorPoint=Vector2.new(.5,.5),Position=UDim2.fromScale((hoverLevel-1)/9,.5),BackgroundColor3=fg,BorderSizePixel=0},track)
 obj('UICorner',{CornerRadius=UDim.new(1,0)},knob)
 obj('UIStroke',{Color=Color3.new(0,0,0),Thickness=2},knob)
 local hoverNumber=obj('TextLabel',{AnchorPoint=Vector2.new(.5,1),Position=UDim2.new((hoverLevel-1)/9,0,0,-11),Size=UDim2.fromOffset(32,22),BackgroundColor3=Color3.fromRGB(12,14,20),TextColor3=fg,Text=tostring(hoverLevel),TextSize=14,Font=Enum.Font.GothamBold,BorderSizePixel=0,ZIndex=8},track)
@@ -304,7 +304,19 @@ local function rackTargets()
  end
  return result
 end
-local rackReport=label(pages.Settings,'Rack scan not run',335,450)
+local rackReport=label(pages.Settings,'Rack scan not run',425,400)
+local calibratedRack=_G.WEHubRackCalibration
+local rackCalStatus=label(pages.Settings,calibratedRack and 'Rack position saved for this session' or 'Rack position not set',375,42)
+local setRackBtn=btn(pages.Settings,'SET RACK POSITION',8,335,220,36)
+on(setRackBtn.MouseButton1Click,function()
+ local root=P.Character and P.Character:FindFirstChild('HumanoidRootPart')
+ local myplot=plot()
+ if not root or not myplot then notice='Stand at your installed rack before setting position';return end
+ calibratedRack={position=root.Position,plotName=myplot.Name}
+ _G.WEHubRackCalibration=calibratedRack
+ rackCalStatus.Text='Saved rack approach: '..myplot.Name
+ notice='Rack approach saved. Start MASTER to test placement.'
+end)
 local function scanRackDetails()
  local myplot=plot()
  if not myplot then rackReport.Text='No owned plot found';notice='Rack scan: plot not found';return end
@@ -337,8 +349,14 @@ on(scanRacksBtn.MouseButton1Click,scanRackDetails)
 local function storeCarried(box,gen)
  if not placeOn then notice='Holding carton; enable Auto Place';return false end
  if type(fireproximityprompt)~='function' then notice='Executor lacks fireproximityprompt';return false end
- local targets=rackTargets()
- if #targets==0 then notice='No verified rack storage prompts found. Settings > SCAN REAL RACKS';jobStatus='Waiting for rack scan';return false end
+ local targets={}
+ local myplot=plot()
+ if calibratedRack and myplot and calibratedRack.plotName==myplot.Name then
+  table.insert(targets,calibratedRack.position)
+ else
+  targets=rackTargets()
+ end
+ if #targets==0 then notice='No rack approach saved. Stand at your installed rack and click Settings > SET RACK POSITION';jobStatus='Waiting for rack calibration';return false end
  local root=rootPart()
  if root then table.sort(targets,function(a,b)return (a-root.Position).Magnitude<(b-root.Position).Magnitude end) end
  -- A put-down prompt belongs to the carton being carried, not the rack.
@@ -346,7 +364,7 @@ local function storeCarried(box,gen)
  for i=1,math.min(#targets,12) do
   if not alive or not master or gen~=controllerGeneration then return false end
   jobStatus='Carrying '..box.Name..' to rack'
-  if moveToPosition(targets[i],7,gen) then
+  if moveToPosition(targets[i],3,gen) then
    local p=cartonPrompt(box,'putdown')
    if p then
     local ok=pcall(fireproximityprompt,p)
@@ -360,7 +378,7 @@ local function storeCarried(box,gen)
    end
   end
  end
- notice='Unable to confirm storage; check rack slots and Put Down interaction'
+ notice='Put Down did not confirm Stored. Check rack approach and free space'
  return false
 end
 local function runBatch(gen)
@@ -406,4 +424,4 @@ local function cleanup()if not alive then return end;alive=false;controllerGener
 _G.WEHubCleanup=cleanup;on(close.MouseButton1Click,cleanup)
 updateMovement();updateAuto();pcall(refresh)
 task.spawn(function()while alive do pcall(refresh);pcall(handleCartons);updateAuto();task.wait(2)end end)
-print('Wholesale Empire Hub v2.7 loaded')
+print('Wholesale Empire Hub v2.8 loaded')
