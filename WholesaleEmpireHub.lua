@@ -1,4 +1,4 @@
--- Wholesale Empire Hub v2.2 | Potassium Luau
+-- Wholesale Empire Hub v2.3 | Potassium Luau
 -- Safe automation: stock alerts, worker alerts, optional nearby non-purchase prompts.
 -- Remote purchasing/order fulfilment requires verified argument schemas and is NOT fired.
 local P=game:GetService('Players').LocalPlayer
@@ -16,8 +16,14 @@ local bg=Color3.fromRGB(25,28,37);local panel=Color3.fromRGB(39,45,59);local fg=
 local main=obj('Frame',{Size=UDim2.fromOffset(610,420),Position=lastPos,BackgroundColor3=bg,BorderSizePixel=0,Active=true},g)
 obj('UICorner',{CornerRadius=UDim.new(0,10)},main)
 local bar=obj('Frame',{Size=UDim2.new(1,0,0,45),BackgroundColor3=panel,BorderSizePixel=0,Active=true},main)
-obj('TextLabel',{Size=UDim2.new(1,-100,1,0),Position=UDim2.fromOffset(12,0),BackgroundTransparency=1,Text='WHOLESALE EMPIRE HUB  v2.2',TextColor3=fg,Font=Enum.Font.GothamBold,TextSize=15,TextXAlignment=Enum.TextXAlignment.Left},bar)
-local function btn(parent,text,x,y,w,h)local b=obj('TextButton',{Position=UDim2.fromOffset(x,y),Size=UDim2.fromOffset(w,h),BackgroundColor3=panel,TextColor3=fg,Text=text,TextSize=13,Font=Enum.Font.GothamBold,BorderSizePixel=0},parent);obj('UICorner',{CornerRadius=UDim.new(0,6)},b);obj('UIStroke',{Color=Color3.new(0,0,0),Thickness=2,Transparency=0,ApplyStrokeMode=Enum.ApplyStrokeMode.Border},b);return b end
+obj('TextLabel',{Size=UDim2.new(1,-100,1,0),Position=UDim2.fromOffset(12,0),BackgroundTransparency=1,Text='WHOLESALE EMPIRE HUB  v2.3',TextColor3=fg,Font=Enum.Font.GothamBold,TextSize=15,TextXAlignment=Enum.TextXAlignment.Left},bar)
+local function btn(parent,text,x,y,w,h)
+ local border=obj('Frame',{Position=UDim2.fromOffset(x,y),Size=UDim2.fromOffset(w,h),BackgroundColor3=Color3.new(0,0,0),BorderSizePixel=0},parent)
+ obj('UICorner',{CornerRadius=UDim.new(0,7)},border)
+ local b=obj('TextButton',{Position=UDim2.fromOffset(2,2),Size=UDim2.new(1,-4,1,-4),BackgroundColor3=panel,TextColor3=fg,Text=text,TextSize=13,Font=Enum.Font.GothamBold,BorderSizePixel=0},border)
+ obj('UICorner',{CornerRadius=UDim.new(0,5)},b)
+ return b
+end
 local close=btn(bar,'X',565,7,35,30);local mini=btn(bar,'-',524,7,35,30);local bubble=btn(g,'WE',15,170,46,46);bubble.Visible=false
 local function show(v)main.Visible=v;bubble.Visible=not v end
 on(mini.MouseButton1Click,function()show(false)end);on(bubble.MouseButton1Click,function()show(true)end)
@@ -87,7 +93,7 @@ on(track.InputBegan,function(input)if input.UserInputType==Enum.UserInputType.Mo
 on(knob.InputBegan,function(input)if input.UserInputType==Enum.UserInputType.MouseButton1 then sliding=true;setHoverSpeed(input.Position.X) end end)
 on(U.InputChanged,function(input)if sliding and input.UserInputType==Enum.UserInputType.MouseMovement then setHoverSpeed(input.Position.X)end end)
 on(U.InputEnded,function(input)if input.UserInputType==Enum.UserInputType.MouseButton1 then sliding=false end end)
-local function stop()if hoverTween then hoverTween:Cancel();hoverTween=nil end;hoverActive=false;master=false;autoTravel=false;autoBuy=false;pickupOn=false;placeOn=false;speed=false;jump=false;noclip=false;for k in pairs(running)do running[k]=false end;if hum()then hum().WalkSpeed=16 end;for part,old in pairs(saved)do if part.Parent then part.CanCollide=old end end;table.clear(saved);updateMovement()end
+local function stop()if hoverTween then hoverTween:Cancel();hoverTween=nil end;hoverActive=false;if hum() then hum().PlatformStand=false;hum().AutoRotate=true end;master=false;autoTravel=false;autoBuy=false;pickupOn=false;placeOn=false;speed=false;jump=false;noclip=false;for k in pairs(running)do running[k]=false end;if hum()then hum().WalkSpeed=16 end;for part,old in pairs(saved)do if part.Parent then part.CanCollide=old end end;table.clear(saved);updateMovement()end
 local stopBtn=btn(pages.Settings,'STOP ALL',8,15,220,42)
 on(stopBtn.MouseButton1Click,function()stop();notice='All local features stopped' end)
 label(pages.Settings,'Right Shift: toggle window\nDrag: top bar\nClose: unload\n\nNo unverified remote purchases or orders.\nNearby prompts are opt-in and limited to non-purchase actions.',75,250)
@@ -214,34 +220,41 @@ local function moveToPosition(position,range,gen)
  if not h or not root then return false end
  if (root.Position-position).Magnitude<=range then return true end
  if not autoTravel then notice='Auto Travel must be ON';return false end
+ local wasPlatformStand=h.PlatformStand
+ local wasAutoRotate=h.AutoRotate
  hoverActive=true
+ h.PlatformStand=true;h.AutoRotate=false
  local function finish(ok)
   if hoverTween then hoverTween:Cancel();hoverTween=nil end
   hoverActive=false
+  if h and h.Parent then h.PlatformStand=wasPlatformStand;h.AutoRotate=wasAutoRotate end
   if root and root.Parent then root.AssemblyLinearVelocity=Vector3.zero;root.AssemblyAngularVelocity=Vector3.zero end
   return ok
  end
  local direction=position-root.Position
  local distance=direction.Magnitude
  local destination=position
- if distance>range and distance>0 then destination=position-direction.Unit*math.max(1,range-1) end
- local travelDistance=(destination-root.Position).Magnitude
- if travelDistance<.1 then return finish(true) end
- local duration=travelDistance/math.max(8,hoverSpeed)
- jobStatus='Hovering ('..math.floor(travelDistance)..' studs, '..math.floor(hoverSpeed)..'/s)'
- h:Move(Vector3.zero)
- root.AssemblyLinearVelocity=Vector3.zero
- local tween=TweenService:Create(root,TweenInfo.new(duration,Enum.EasingStyle.Linear),{CFrame=CFrame.new(destination)*root.CFrame.Rotation})
- hoverTween=tween
- tween:Play()
- local started=os.clock()
- while alive and master and autoTravel and gen==controllerGeneration and tween.PlaybackState==Enum.PlaybackState.Playing do
-  if not root.Parent or os.clock()-started>duration+3 then break end
-  task.wait(.05)
+ if distance>range and distance>0 then destination=position-direction.Unit*math.max(1,range-2) end
+ -- Travel at a modest elevated height, then descend into prompt range.
+ local raised=Vector3.new(destination.X,math.max(root.Position.Y,destination.Y)+3,destination.Z)
+ local function glide(point)
+  local length=(point-root.Position).Magnitude
+  if length<.1 then return true end
+  local duration=length/math.max(8,hoverSpeed)
+  local tween=TweenService:Create(root,TweenInfo.new(duration,Enum.EasingStyle.Linear),{CFrame=CFrame.new(point)*root.CFrame.Rotation})
+  hoverTween=tween;tween:Play()
+  local started=os.clock()
+  while alive and master and autoTravel and gen==controllerGeneration and tween.PlaybackState==Enum.PlaybackState.Playing do
+   if not root.Parent or os.clock()-started>duration+3 then break end
+   root.AssemblyLinearVelocity=Vector3.zero
+   task.wait(.05)
+  end
+  return alive and master and autoTravel and gen==controllerGeneration and root.Parent~=nil and (root.Position-point).Magnitude<3
  end
- local valid=alive and master and autoTravel and gen==controllerGeneration and root.Parent~=nil
- local reached=valid and (root.Position-position).Magnitude<=range+1
- return finish(reached)
+ jobStatus='Hovering to destination at '..math.floor(hoverSpeed)..' studs/sec'
+ if not glide(raised) then return finish(false) end
+ if not glide(destination) then return finish(false) end
+ return finish((root.Position-position).Magnitude<=range+1)
 end
 local function triggerAndConfirm(box,verb,expected,gen)
  local prompt=cartonPrompt(box,verb)
@@ -269,9 +282,20 @@ end
 local function rackTargets()
  local myplot=plot();local result={}
  if not myplot then return result end
- for _,item in ipairs(myplot:GetDescendants())do
-  if item:IsA('BasePart') and (item.Name:lower():find('rack',1,true) or item.Name:lower():find('slot',1,true)) then
-   table.insert(result,item.Position)
+ -- Do not treat generic rack bays, plot slots or placeholder parts as built racks.
+ -- Only target a real rack model with a storage interaction prompt.
+ local seen={}
+ for _,node in ipairs(myplot:GetDescendants())do
+  if node:IsA('ProximityPrompt') and node.Enabled then
+   local action=(node.ActionText or ''):lower()
+   local parentName=(node.Parent and node.Parent.Name or ''):lower()
+   local ancestor=node:FindFirstAncestorWhichIsA('Model')
+   local modelName=(ancestor and ancestor.Name or ''):lower()
+   if (action:find('store',1,true) or action:find('place',1,true) or action:find('stock',1,true))
+     and (parentName:find('rack',1,true) or modelName:find('rack',1,true) or modelName:find('shelf',1,true)) then
+    local pos=promptPosition(node)
+    if pos and not seen[node] then seen[node]=true;table.insert(result,pos) end
+   end
   end
  end
  return result
@@ -280,7 +304,7 @@ local function storeCarried(box,gen)
  if not placeOn then notice='Holding carton; enable Auto Place';return false end
  if type(fireproximityprompt)~='function' then notice='Executor lacks fireproximityprompt';return false end
  local targets=rackTargets()
- if #targets==0 then notice='No rack targets found; storage paused';return false end
+ if #targets==0 then notice='No verified rack storage prompts found; holding carton safely';jobStatus='Waiting for real rack';return false end
  local root=rootPart()
  if root then table.sort(targets,function(a,b)return (a-root.Position).Magnitude<(b-root.Position).Magnitude end) end
  -- A put-down prompt belongs to the carton being carried, not the rack.
@@ -348,4 +372,4 @@ local function cleanup()if not alive then return end;alive=false;controllerGener
 _G.WEHubCleanup=cleanup;on(close.MouseButton1Click,cleanup)
 updateMovement();updateAuto();pcall(refresh)
 task.spawn(function()while alive do pcall(refresh);pcall(handleCartons);updateAuto();task.wait(2)end end)
-print('Wholesale Empire Hub v2.2 loaded')
+print('Wholesale Empire Hub v2.3 loaded')
