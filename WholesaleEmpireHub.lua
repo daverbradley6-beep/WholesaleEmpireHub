@@ -1,4 +1,4 @@
--- Wholesale Empire Hub v2.4 | Potassium Luau
+-- Wholesale Empire Hub v2.5 | Potassium Luau
 -- Safe automation: stock alerts, worker alerts, optional nearby non-purchase prompts.
 -- Remote purchasing/order fulfilment requires verified argument schemas and is NOT fired.
 local P=game:GetService('Players').LocalPlayer
@@ -8,7 +8,7 @@ local Pathfinding=game:GetService('PathfindingService')
 local TweenService=game:GetService('TweenService')
 if _G.WEHubCleanup then pcall(_G.WEHubCleanup) end
 local g=Instance.new('ScreenGui');g.Name='WholesaleEmpireHub';g.ResetOnSpawn=false;g.Parent=P:WaitForChild('PlayerGui')
-local hoverSpeed=32;local hoverTween=nil;local hoverActive=false
+local hoverLevel=5;local hoverSpeed=32;local hoverTween=nil;local hoverActive=false
 local con={};local alive=true;local speed=false;local jump=false;local noclip=false;local target=24;local saved={};local running={alerts=false,workerAlerts=false,nearby=false};local threshold=10;local maxDistance=9;local lastPrompt={};local notice='Ready';local lastPos=(_G.WEHubPosition or UDim2.new(.5,-305,.5,-210))
 local function on(s,f)local c=s:Connect(f);table.insert(con,c);return c end
 local function obj(t,p,at)local x=Instance.new(t);for k,v in pairs(p)do x[k]=v end;x.Parent=at;return x end
@@ -16,7 +16,7 @@ local bg=Color3.fromRGB(25,28,37);local panel=Color3.fromRGB(39,45,59);local fg=
 local main=obj('Frame',{Size=UDim2.fromOffset(610,420),Position=lastPos,BackgroundColor3=bg,BorderSizePixel=0,Active=true},g)
 obj('UICorner',{CornerRadius=UDim.new(0,10)},main)
 local bar=obj('Frame',{Size=UDim2.new(1,0,0,45),BackgroundColor3=panel,BorderSizePixel=0,Active=true},main)
-obj('TextLabel',{Size=UDim2.new(1,-100,1,0),Position=UDim2.fromOffset(12,0),BackgroundTransparency=1,Text='WHOLESALE EMPIRE HUB  v2.4',TextColor3=fg,Font=Enum.Font.GothamBold,TextSize=15,TextXAlignment=Enum.TextXAlignment.Left},bar)
+obj('TextLabel',{Size=UDim2.new(1,-100,1,0),Position=UDim2.fromOffset(12,0),BackgroundTransparency=1,Text='WHOLESALE EMPIRE HUB  v2.5',TextColor3=fg,Font=Enum.Font.GothamBold,TextSize=15,TextXAlignment=Enum.TextXAlignment.Left},bar)
 local function btn(parent,text,x,y,w,h)
  local border=obj('Frame',{Position=UDim2.fromOffset(x,y),Size=UDim2.fromOffset(w,h),BackgroundColor3=Color3.new(0,0,0),BorderSizePixel=0},parent)
  obj('UICorner',{CornerRadius=UDim.new(0,7)},border)
@@ -62,7 +62,7 @@ local pickupOn=false;local placeOn=false;local autoTravel=false;local autoBuy=fa
 
 local movement=label(pages.Movement,'',12,85)
 local function hum()local c=P.Character;return c and c:FindFirstChildOfClass('Humanoid')end
-local function updateMovement()movement.Text='Walk speed '..target..' ('..(speed and 'ON' or 'OFF')..')\nHover travel speed '..math.floor(hoverSpeed)..' studs/sec\nInfinite jump '..tostring(jump)..' | Noclip '..tostring(noclip) end
+local function updateMovement()movement.Text='Walk speed '..target..' ('..(speed and 'ON' or 'OFF')..')\nHover speed '..hoverLevel..'/10 ('..math.floor(hoverSpeed)..' studs/sec)\nInfinite jump '..tostring(jump)..' | Noclip '..tostring(noclip) end
 local bSpeed=btn(pages.Movement,'Toggle speed',8,110,150,36)
 local bDown=btn(pages.Movement,'Speed -4',8,155,100,36)
 local bUp=btn(pages.Movement,'Speed +4',116,155,100,36)
@@ -74,18 +74,18 @@ on(bUp.MouseButton1Click,function()target=math.min(100,target+4);updateMovement(
 on(bJump.MouseButton1Click,function()jump=not jump;updateMovement()end)
 on(bNoclip.MouseButton1Click,function()noclip=not noclip;updateMovement()end)
 
-local hoverTitle=label(pages.Movement,'Hover speed (8–120 studs/sec)',300,24)
+local hoverTitle=label(pages.Movement,'Hover speed (1–10)',300,24)
 local track=obj('Frame',{Position=UDim2.fromOffset(15,338),Size=UDim2.fromOffset(385,10),BackgroundColor3=Color3.fromRGB(10,12,16),BorderSizePixel=0},pages.Movement)
 obj('UICorner',{CornerRadius=UDim.new(1,0)},track)
-local fill=obj('Frame',{Size=UDim2.fromScale((hoverSpeed-8)/112,1),BackgroundColor3=accent,BorderSizePixel=0},track)
+local fill=obj('Frame',{Size=UDim2.fromScale((hoverLevel-1)/9,1),BackgroundColor3=accent,BorderSizePixel=0},track)
 obj('UICorner',{CornerRadius=UDim.new(1,0)},fill)
 local knob=obj('Frame',{Size=UDim2.fromOffset(18,18),AnchorPoint=Vector2.new(.5,.5),Position=UDim2.fromScale((hoverSpeed-8)/112,.5),BackgroundColor3=fg,BorderSizePixel=0},track)
 obj('UICorner',{CornerRadius=UDim.new(1,0)},knob)
 obj('UIStroke',{Color=Color3.new(0,0,0),Thickness=2},knob)
 local sliding=false
 local function setHoverSpeed(x)
- hoverSpeed=math.floor(8+112*math.clamp((x-track.AbsolutePosition.X)/math.max(track.AbsoluteSize.X,1),0,1)+.5)
- local ratio=(hoverSpeed-8)/112
+ hoverLevel=math.clamp(math.floor(1+9*math.clamp((x-track.AbsolutePosition.X)/math.max(track.AbsoluteSize.X,1),0,1)+.5),1,10)\n hoverSpeed=12+4*hoverLevel
+ local ratio=(hoverLevel-1)/9
  fill.Size=UDim2.fromScale(ratio,1);knob.Position=UDim2.fromScale(ratio,.5)
  updateMovement()
 end
@@ -402,4 +402,4 @@ local function cleanup()if not alive then return end;alive=false;controllerGener
 _G.WEHubCleanup=cleanup;on(close.MouseButton1Click,cleanup)
 updateMovement();updateAuto();pcall(refresh)
 task.spawn(function()while alive do pcall(refresh);pcall(handleCartons);updateAuto();task.wait(2)end end)
-print('Wholesale Empire Hub v2.4 loaded')
+print('Wholesale Empire Hub v2.5 loaded')
