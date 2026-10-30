@@ -1,4 +1,4 @@
--- Wholesale Empire Hub v2.3 | Potassium Luau
+-- Wholesale Empire Hub v2.4 | Potassium Luau
 -- Safe automation: stock alerts, worker alerts, optional nearby non-purchase prompts.
 -- Remote purchasing/order fulfilment requires verified argument schemas and is NOT fired.
 local P=game:GetService('Players').LocalPlayer
@@ -16,7 +16,7 @@ local bg=Color3.fromRGB(25,28,37);local panel=Color3.fromRGB(39,45,59);local fg=
 local main=obj('Frame',{Size=UDim2.fromOffset(610,420),Position=lastPos,BackgroundColor3=bg,BorderSizePixel=0,Active=true},g)
 obj('UICorner',{CornerRadius=UDim.new(0,10)},main)
 local bar=obj('Frame',{Size=UDim2.new(1,0,0,45),BackgroundColor3=panel,BorderSizePixel=0,Active=true},main)
-obj('TextLabel',{Size=UDim2.new(1,-100,1,0),Position=UDim2.fromOffset(12,0),BackgroundTransparency=1,Text='WHOLESALE EMPIRE HUB  v2.3',TextColor3=fg,Font=Enum.Font.GothamBold,TextSize=15,TextXAlignment=Enum.TextXAlignment.Left},bar)
+obj('TextLabel',{Size=UDim2.new(1,-100,1,0),Position=UDim2.fromOffset(12,0),BackgroundTransparency=1,Text='WHOLESALE EMPIRE HUB  v2.4',TextColor3=fg,Font=Enum.Font.GothamBold,TextSize=15,TextXAlignment=Enum.TextXAlignment.Left},bar)
 local function btn(parent,text,x,y,w,h)
  local border=obj('Frame',{Position=UDim2.fromOffset(x,y),Size=UDim2.fromOffset(w,h),BackgroundColor3=Color3.new(0,0,0),BorderSizePixel=0},parent)
  obj('UICorner',{CornerRadius=UDim.new(0,7)},border)
@@ -300,11 +300,41 @@ local function rackTargets()
  end
  return result
 end
+local rackReport=label(pages.Settings,'Rack scan not run',335,450)
+local function scanRackDetails()
+ local myplot=plot()
+ if not myplot then rackReport.Text='No owned plot found';notice='Rack scan: plot not found';return end
+ local lines={'RACK DIAGNOSTICS | '..myplot.Name}
+ local count=0;local prompts=0
+ for _,node in ipairs(myplot:GetDescendants())do
+  local n=node.Name:lower()
+  if (node:IsA('Model') or node:IsA('BasePart')) and (n:find('rack',1,true) or n:find('shelf',1,true) or n:find('storage',1,true)) then
+   count+=1
+   if count<=22 then
+    local attrs={}
+    for k,v in pairs(node:GetAttributes())do
+     if #attrs<7 then table.insert(attrs,tostring(k)..'='..tostring(v)) end
+    end
+    table.insert(lines,node.ClassName..' '..node:GetFullName():sub(-105)..' ['..table.concat(attrs,', ')..']')
+   end
+  end
+  if node:IsA('ProximityPrompt') then
+   prompts+=1
+   if prompts<=18 then table.insert(lines,'PROMPT '..node:GetFullName():sub(-90)..' | '..tostring(node.ActionText)..' | '..tostring(node.ObjectText)..' | enabled='..tostring(node.Enabled))end
+  end
+ end
+ table.insert(lines,2,'Rack-related objects: '..count..' | Prompts: '..prompts)
+ rackReport.Text=table.concat(lines,'\\n')
+ notice='Rack scan complete: '..count..' objects, '..prompts..' prompts. Open Settings.'
+ print('[WE HUB RACK SCAN]\\n'..table.concat(lines,'\\n'))
+end
+local scanRacksBtn=btn(pages.Settings,'SCAN REAL RACKS',8,290,220,36)
+on(scanRacksBtn.MouseButton1Click,scanRackDetails)
 local function storeCarried(box,gen)
  if not placeOn then notice='Holding carton; enable Auto Place';return false end
  if type(fireproximityprompt)~='function' then notice='Executor lacks fireproximityprompt';return false end
  local targets=rackTargets()
- if #targets==0 then notice='No verified rack storage prompts found; holding carton safely';jobStatus='Waiting for real rack';return false end
+ if #targets==0 then notice='No verified rack storage prompts found. Settings > SCAN REAL RACKS';jobStatus='Waiting for rack scan';return false end
  local root=rootPart()
  if root then table.sort(targets,function(a,b)return (a-root.Position).Magnitude<(b-root.Position).Magnitude end) end
  -- A put-down prompt belongs to the carton being carried, not the rack.
@@ -372,4 +402,4 @@ local function cleanup()if not alive then return end;alive=false;controllerGener
 _G.WEHubCleanup=cleanup;on(close.MouseButton1Click,cleanup)
 updateMovement();updateAuto();pcall(refresh)
 task.spawn(function()while alive do pcall(refresh);pcall(handleCartons);updateAuto();task.wait(2)end end)
-print('Wholesale Empire Hub v2.3 loaded')
+print('Wholesale Empire Hub v2.4 loaded')
