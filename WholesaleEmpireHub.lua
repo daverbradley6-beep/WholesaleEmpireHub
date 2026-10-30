@@ -84,7 +84,8 @@ obj('UICorner',{CornerRadius=UDim.new(1,0)},knob)
 obj('UIStroke',{Color=Color3.new(0,0,0),Thickness=2},knob)
 local sliding=false
 local function setHoverSpeed(x)
- hoverLevel=math.clamp(math.floor(1+9*math.clamp((x-track.AbsolutePosition.X)/math.max(track.AbsoluteSize.X,1),0,1)+.5),1,10)\n hoverSpeed=12+4*hoverLevel
+ hoverLevel=math.clamp(math.floor(1+9*math.clamp((x-track.AbsolutePosition.X)/math.max(track.AbsoluteSize.X,1),0,1)+.5),1,10)
+ hoverSpeed=12+4*hoverLevel
  local ratio=(hoverLevel-1)/9
  fill.Size=UDim2.fromScale(ratio,1);knob.Position=UDim2.fromScale(ratio,.5)
  updateMovement()
