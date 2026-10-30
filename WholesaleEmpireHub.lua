@@ -1,4 +1,4 @@
--- Wholesale Empire Hub v3.2 | Potassium Luau
+-- Wholesale Empire Hub v3.3 | Potassium Luau
 -- Safe automation: stock alerts, worker alerts, optional nearby non-purchase prompts.
 -- Remote purchasing/order fulfilment requires verified argument schemas and is NOT fired.
 local P=game:GetService('Players').LocalPlayer
@@ -16,7 +16,7 @@ local bg=Color3.fromRGB(25,28,37);local panel=Color3.fromRGB(39,45,59);local fg=
 local main=obj('Frame',{Size=UDim2.fromOffset(610,420),Position=lastPos,BackgroundColor3=bg,BorderSizePixel=0,Active=true},g)
 obj('UICorner',{CornerRadius=UDim.new(0,10)},main)
 local bar=obj('Frame',{Size=UDim2.new(1,0,0,45),BackgroundColor3=panel,BorderSizePixel=0,Active=true},main)
-obj('TextLabel',{Size=UDim2.new(1,-100,1,0),Position=UDim2.fromOffset(12,0),BackgroundTransparency=1,Text='WHOLESALE EMPIRE HUB  v3.2',TextColor3=fg,Font=Enum.Font.GothamBold,TextSize=15,TextXAlignment=Enum.TextXAlignment.Left},bar)
+obj('TextLabel',{Size=UDim2.new(1,-100,1,0),Position=UDim2.fromOffset(12,0),BackgroundTransparency=1,Text='WHOLESALE EMPIRE HUB  v3.3',TextColor3=fg,Font=Enum.Font.GothamBold,TextSize=15,TextXAlignment=Enum.TextXAlignment.Left},bar)
 local function btn(parent,text,x,y,w,h)
  local border=obj('Frame',{Position=UDim2.fromOffset(x,y),Size=UDim2.fromOffset(w,h),BackgroundColor3=Color3.new(0,0,0),BorderSizePixel=0},parent)
  obj('UICorner',{CornerRadius=UDim.new(0,7)},border)
@@ -321,7 +321,7 @@ on(setRackBtn.MouseButton1Click,function()
 end)
 local shippingReport=label(pages.Settings,'Shipping areas not scanned',425,750)
 local scanShipBtn=btn(pages.Settings,'SCAN SHIPPING AREAS',8,380,220,36)
-on(scanShipBtn.MouseButton1Click,function()
+local function scanShippingAreas(silent)
  local myplot=plot()
  local root=P.Character and P.Character:FindFirstChild('HumanoidRootPart')
  local lines={'SHIPPING AREA DISCOVERY'}
@@ -356,10 +356,11 @@ on(scanShipBtn.MouseButton1Click,function()
  end
  if #matches==0 then table.insert(lines,'No named shipping objects found. Need a wider object scan.') end
  shippingReport.Text=table.concat(lines,'\\n')
- notice='Shipping scan: '..#matches..' candidates. See Settings or console.'
- print('[WE HUB SHIPPING SCAN]\\n'..table.concat(lines,'\\n'))
-end)
-local function scanRackDetails()
+ if not silent then notice='Shipping scan: '..#matches..' candidates. See Settings or console.';print('[WE HUB SHIPPING SCAN]\\n'..table.concat(lines,'\\n')) end
+ return #matches
+end
+on(scanShipBtn.MouseButton1Click,function()scanShippingAreas(false)end)
+local function scanRackDetails(silent)
  local myplot=plot()
  if not myplot then rackReport.Text='No owned plot found';notice='Rack scan: plot not found';return end
  local lines={'RACK DIAGNOSTICS | '..myplot.Name}
@@ -383,12 +384,17 @@ local function scanRackDetails()
  end
  table.insert(lines,2,'Rack-related objects: '..count..' | Prompts: '..prompts)
  rackReport.Text=table.concat(lines,'\\n')
- notice='Rack scan complete: '..count..' objects, '..prompts..' prompts. Open Settings.'
- print('[WE HUB RACK SCAN]\\n'..table.concat(lines,'\\n'))
+ if not silent then notice='Rack scan complete: '..count..' objects, '..prompts..' prompts. Open Settings.';print('[WE HUB RACK SCAN]\\n'..table.concat(lines,'\\n')) end
 end
 local scanRacksBtn=btn(pages.Settings,'SCAN REAL RACKS',8,290,220,36)
-on(scanRacksBtn.MouseButton1Click,scanRackDetails)
+on(scanRacksBtn.MouseButton1Click,function()scanRackDetails(false)end)
+local function autoScanLocations()
+ if not master then return end
+ pcall(scanRackDetails,true)
+ pcall(scanShippingAreas,true)
+end
 local function storeCarried(box,gen)
+ autoScanLocations()
  if not placeOn then notice='Holding carton; enable Auto Place';return false end
  if type(fireproximityprompt)~='function' then notice='Executor lacks fireproximityprompt';return false end
  local targets={}
@@ -447,6 +453,7 @@ local function runBatch(gen)
     local box=pending[1]
     jobStatus='Picking up carton ('..#pending..' waiting)'
     if not triggerAndConfirm(box,'pickup','carried',gen) then break end
+     autoScanLocations()
     if not placeOn then notice='Carton collected; enable Auto Place';break end
    end
    task.wait(.3)
@@ -468,4 +475,4 @@ local function cleanup()if not alive then return end;alive=false;controllerGener
 _G.WEHubCleanup=cleanup;on(close.MouseButton1Click,cleanup)
 updateMovement();updateAuto();pcall(refresh)
 task.spawn(function()while alive do pcall(refresh);pcall(handleCartons);updateAuto();task.wait(2)end end)
-print('Wholesale Empire Hub v3.2 loaded')
+print('Wholesale Empire Hub v3.3 loaded')
